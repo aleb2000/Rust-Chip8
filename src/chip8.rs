@@ -137,7 +137,7 @@ impl<T: Drawable> Chip8<T> {
                 let cx = (x as usize + col) % self.vram[0].len();
                 let color = ((byte & (0b1000_0000 >> col)) > 0) as u8;
                 self.reg.v[0xF] |= (self.vram[cy][cx] != 0 && color != 0) as u8;
-                self.vram[cy][cx] = self.vram[cy][cx] ^ color;
+                self.vram[cy][cx] ^= color;
             }
         }
     }
