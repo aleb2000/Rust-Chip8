@@ -14,7 +14,7 @@ struct Args {
     #[arg(required = true)]
     file: String,
 
-    /// Clock frequency in Hz, valid values are in the range (0, 1_000_000_000].
+    /// Clock frequency in Hz, valid values are in the range [0, 1_000_000_000).
     /// If the value is 0 the program will run at maximum speed and will not enforce any clockspeed
     #[arg(short, long, default_value_t = 500)]
     freq: usize,
