@@ -1,6 +1,3 @@
-// TODO: remove
-#![allow(dead_code)]
-
 use std::time::Instant;
 
 use arbitrary_int::u4;
@@ -155,7 +152,6 @@ impl<T: Drawable> Chip8<T> {
                 }
             }
             Inst::RET => {
-                // TODO: bounds check?
                 self.reg.sp -= 1;
                 self.reg.pc = self.stack[self.reg.sp as usize];
             }
