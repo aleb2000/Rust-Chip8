@@ -1,6 +1,15 @@
 use std::collections::HashMap;
 
-use sdl2::{pixels::Color, event::Event, keyboard::Scancode, video::Window, render::Canvas, EventPump, rect::Rect, audio::{AudioCallback, AudioSpecDesired, AudioDevice}};
+use sdl2::{
+    audio::{AudioCallback, AudioDevice, AudioSpecDesired},
+    event::Event,
+    keyboard::Scancode,
+    pixels::Color,
+    rect::Rect,
+    render::Canvas,
+    video::Window,
+    EventPump,
+};
 
 use super::Drawable;
 
@@ -18,31 +27,35 @@ pub struct SDLGraphics {
 }
 
 impl SDLGraphics {
-    pub fn new(width_cells: u32, height_cells: u32, pixel_size: u32, keymap: HashMap<u8, char>) -> SDLGraphics {
+    pub fn new(
+        width_cells: u32,
+        height_cells: u32,
+        pixel_size: u32,
+        keymap: HashMap<u8, char>,
+    ) -> SDLGraphics {
         let ctx = sdl2::init().unwrap();
         let video = ctx.video().unwrap();
-        let window = video.window("Chip8", width_cells * pixel_size, height_cells * pixel_size)
+        let window = video
+            .window("Chip8", width_cells * pixel_size, height_cells * pixel_size)
             .position_centered()
             .build()
             .unwrap();
-        let canvas = window.into_canvas()
-            .build()
-            .unwrap();
+        let canvas = window.into_canvas().build().unwrap();
         let event_pump = ctx.event_pump().unwrap();
         let audio = ctx.audio().unwrap();
         let audio_spec = AudioSpecDesired {
             freq: Some(44100),
             channels: Some(1),
-            samples: None
+            samples: None,
         };
 
-        let audio_device = audio.open_playback(None, &audio_spec, |spec| {
-            SquareWave {
+        let audio_device = audio
+            .open_playback(None, &audio_spec, |spec| SquareWave {
                 phase_inc: 440.0 / spec.freq as f32,
                 phase: 0.0,
-                volume: 0.25
-            }
-        }).unwrap();
+                volume: 0.25,
+            })
+            .unwrap();
 
         SDLGraphics {
             width_cells,
@@ -77,11 +90,13 @@ impl Drawable for SDLGraphics {
         self.height_cells as usize
     }
 
-    fn is_key_pressed(&self, key: u8) -> bool {
+    fn is_key_pressed(&mut self, key: u8) -> bool {
         let &keychar = self.keymap.get(&key).unwrap();
-        self.event_pump.keyboard_state().is_scancode_pressed(keychar_to_scancode(keychar))
+        self.event_pump
+            .keyboard_state()
+            .is_scancode_pressed(keychar_to_scancode(keychar))
     }
-    
+
     fn should_close(&self) -> bool {
         self.close_requested
     }
@@ -91,16 +106,21 @@ impl Drawable for SDLGraphics {
             let event = self.event_pump.wait_event();
 
             match event {
-                Event::KeyDown { keycode: Some(keycode), .. } => {
+                Event::KeyDown {
+                    keycode: Some(keycode),
+                    ..
+                } => {
                     for (key, keychar) in self.keymap.iter() {
-                        if keycode.name().to_ascii_lowercase() == String::from(*keychar).to_ascii_lowercase() {
+                        if keycode.name().to_ascii_lowercase()
+                            == String::from(*keychar).to_ascii_lowercase()
+                        {
                             return *key;
                         }
                     }
-                },
+                }
                 Event::Quit { .. } => {
                     self.close_requested = true;
-                    return 42
+                    return 42;
                 }
                 _ => (),
             }
@@ -116,12 +136,14 @@ impl Drawable for SDLGraphics {
                     self.canvas.set_draw_color(Color::RGB(0, 0, 0));
                 }
 
-                self.canvas.fill_rect(Rect::new(
-                    (x * self.pixel_size as usize) as i32,
-                    (y * self.pixel_size as usize) as i32,
-                    self.pixel_size,
-                    self.pixel_size
-                )).expect("Failed to draw rectangle, possible driver failure");
+                self.canvas
+                    .fill_rect(Rect::new(
+                        (x * self.pixel_size as usize) as i32,
+                        (y * self.pixel_size as usize) as i32,
+                        self.pixel_size,
+                        self.pixel_size,
+                    ))
+                    .expect("Failed to draw rectangle, possible driver failure");
             }
         }
         self.canvas.present();
@@ -170,7 +192,7 @@ fn keychar_to_scancode(keychar: char) -> Scancode {
         'x' => Scancode::X,
         'c' => Scancode::C,
         'v' => Scancode::V,
-        _ => panic!("Unsupported scancode")
+        _ => panic!("Unsupported scancode"),
     }
 }
 
@@ -178,7 +200,7 @@ fn keychar_to_scancode(keychar: char) -> Scancode {
 struct SquareWave {
     phase_inc: f32,
     phase: f32,
-    volume: f32
+    volume: f32,
 }
 
 impl AudioCallback for SquareWave {

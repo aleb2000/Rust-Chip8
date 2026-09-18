@@ -2,8 +2,8 @@ use std::time::Instant;
 
 use arbitrary_int::u4;
 
-use crate::instructions::Inst;
 use crate::graphics::Drawable;
+use crate::instructions::Inst;
 
 pub struct Chip8<T: Drawable> {
     memory: [u8; 4096],
@@ -39,7 +39,6 @@ impl Registers {
     }
 }
 
-
 impl<T: Drawable> Chip8<T> {
     fn init(&mut self) {
         self.memory[0..HEX_SPRITES.len()].copy_from_slice(&HEX_SPRITES);
@@ -56,7 +55,9 @@ impl<T: Drawable> Chip8<T> {
             reg: Registers::new(),
             gfx: graphics,
             vram: vec![vec![0; cols]; rows],
-            clock_timeout_nanos: 1_000_000_000_u128.checked_div(freq as u128).unwrap_or(0),
+            clock_timeout_nanos: 1_000_000_000_u128
+                .checked_div(freq as u128)
+                .unwrap_or_default(),
         };
 
         c8.init();
@@ -89,11 +90,14 @@ impl<T: Drawable> Chip8<T> {
         self.gfx.init();
         let mut timers = Instant::now();
         let mut clock = Instant::now();
-        
+
         while !self.gfx.should_close() {
             loop {
-                let remaining_time = self.clock_timeout_nanos.saturating_sub(clock.elapsed().as_nanos()) / 1000000;
-                
+                let remaining_time = self
+                    .clock_timeout_nanos
+                    .saturating_sub(clock.elapsed().as_nanos())
+                    / 1000000;
+
                 self.gfx.update(remaining_time as u32);
                 self.gfx.draw_screen(&self.vram);
 
@@ -119,13 +123,13 @@ impl<T: Drawable> Chip8<T> {
             self.step();
         }
         self.gfx.finalize();
-
     }
 
     fn drw(&mut self, reg1: u4, reg2: u4, n: u4) {
         let x = self.reg.v[reg1.value() as usize];
         let y = self.reg.v[reg2.value() as usize];
-        let sprite = self.memory[self.reg.i as usize..self.reg.i as usize + n.value() as usize].to_vec();
+        let sprite =
+            self.memory[self.reg.i as usize..self.reg.i as usize + n.value() as usize].to_vec();
 
         self.reg.v[0xF] = 0;
         for (row, &byte) in sprite.iter().enumerate() {
@@ -182,7 +186,8 @@ impl<T: Drawable> Chip8<T> {
                 self.reg.v[reg.value() as usize] = val;
             }
             Inst::ADD(reg, val) => {
-                self.reg.v[reg.value() as usize] = self.reg.v[reg.value() as usize].wrapping_add(val);
+                self.reg.v[reg.value() as usize] =
+                    self.reg.v[reg.value() as usize].wrapping_add(val);
             }
             Inst::LDV(reg1, reg2) => {
                 self.reg.v[reg1.value() as usize] = self.reg.v[reg2.value() as usize];
@@ -197,7 +202,8 @@ impl<T: Drawable> Chip8<T> {
                 self.reg.v[reg1.value() as usize] ^= self.reg.v[reg2.value() as usize];
             }
             Inst::ADDV(reg1, reg2) => {
-                let (val, overflow) = self.reg.v[reg1.value() as usize].overflowing_add(self.reg.v[reg2.value() as usize]);
+                let (val, overflow) = self.reg.v[reg1.value() as usize]
+                    .overflowing_add(self.reg.v[reg2.value() as usize]);
                 self.reg.v[reg1.value() as usize] = val;
                 self.reg.v[0xF] = overflow as u8;
             }
@@ -234,105 +240,77 @@ impl<T: Drawable> Chip8<T> {
             }
             Inst::RND(reg, val) => {
                 self.reg.v[reg.value() as usize] = rand::random::<u8>() & val;
-            },
+            }
             Inst::DRW(reg1, reg2, val) => {
                 self.drw(reg1, reg2, val);
-            },
+            }
             Inst::SKP(reg) => {
                 if self.gfx.is_key_pressed(self.reg.v[reg.value() as usize]) {
                     self.reg.pc += 2;
                 }
-            },
+            }
             Inst::SKNP(reg) => {
                 if !self.gfx.is_key_pressed(self.reg.v[reg.value() as usize]) {
                     self.reg.pc += 2;
                 }
-            },
+            }
             Inst::LDVDT(reg) => {
                 self.reg.v[reg.value() as usize] = self.reg.dt;
-            },
+            }
             Inst::LDVKEY(reg) => {
                 self.reg.v[reg.value() as usize] = self.gfx.wait_for_key();
-            },
+            }
             Inst::LDDTV(reg) => {
                 self.reg.dt = self.reg.v[reg.value() as usize];
-            },
+            }
             Inst::LDSTV(reg) => {
                 self.reg.st = self.reg.v[reg.value() as usize];
-            },
+            }
             Inst::ADDIV(reg) => {
                 self.reg.i += self.reg.v[reg.value() as usize] as u16;
-            },
+            }
             Inst::LDFV(reg) => {
                 self.reg.i = self.reg.v[reg.value() as usize] as u16 * SPRITE_SIZE as u16;
-            },
+            }
             Inst::LDBV(reg) => {
                 let val = self.reg.v[reg.value() as usize];
                 self.memory[self.reg.i as usize] = val / 100;
                 self.memory[self.reg.i as usize + 1] = (val / 10) % 10;
                 self.memory[self.reg.i as usize + 2] = val % 10;
-            },
+            }
             Inst::LDIV(reg) => {
-                let dst = &mut self.memory[(self.reg.i as usize)..=(self.reg.i as usize + reg.value() as usize)];
+                let dst = &mut self.memory
+                    [(self.reg.i as usize)..=(self.reg.i as usize + reg.value() as usize)];
                 let src = &self.reg.v[0..=reg.value() as usize];
                 dst.copy_from_slice(src);
-            },
+            }
             Inst::LDVI(reg) => {
-                let src = &self.memory[(self.reg.i as usize)..=(self.reg.i as usize + reg.value() as usize)];
+                let src = &self.memory
+                    [(self.reg.i as usize)..=(self.reg.i as usize + reg.value() as usize)];
                 let dst = &mut self.reg.v[0..=reg.value() as usize];
                 dst.copy_from_slice(src);
-            },
+            }
         }
     }
 }
 
 const SPRITE_SIZE: usize = 5;
+
 const HEX_SPRITES: [u8; 5 * 16] = [
-    // 0
-    0xF0, 0x90, 0x90, 0x90, 0xF0,
-
-    // 1
-    0x20, 0x60, 0x20, 0x20, 0x70,
-
-    // 2
-    0xF0, 0x10, 0xF0, 0x80, 0xF0,
-
-    // 3
-    0xF0, 0x10, 0xF0, 0x10, 0xF0,
-
-    // 4
-    0x90, 0x90, 0xF0, 0x10, 0x10,
-
-    // 5
-    0xF0, 0x80, 0xF0, 0x10, 0xF0,
-
-    // 6
-    0xF0, 0x80, 0xF0, 0x90, 0xF0,
-
-    // 7
-    0xF0, 0x10, 0x20, 0x40, 0x40,
-
-    // 8
-    0xF0, 0x90, 0xF0, 0x90, 0xF0,
-
-    // 9
-    0xF0, 0x90, 0xF0, 0x10, 0xF0,
-
-    // A
-    0xF0, 0x90, 0xF0, 0x90, 0x90,
-
-    // B
-    0xE0, 0x90, 0xE0, 0x90, 0xE0,
-
-    // C
-    0xF0, 0x80, 0x80, 0x80, 0xF0,
-
-    // D
-    0xE0, 0x90, 0x90, 0x90, 0xE0,
-
-    // E
-    0xF0, 0x80, 0xF0, 0x80, 0xF0,
-
-    // F
-    0xF0, 0x80, 0xF0, 0x80, 0x80,
+    0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
+    0x20, 0x60, 0x20, 0x20, 0x70, // 1
+    0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
+    0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
+    0x90, 0x90, 0xF0, 0x10, 0x10, // 4
+    0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5
+    0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6
+    0xF0, 0x10, 0x20, 0x40, 0x40, // 7
+    0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8
+    0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9
+    0xF0, 0x90, 0xF0, 0x90, 0x90, // A
+    0xE0, 0x90, 0xE0, 0x90, 0xE0, // B
+    0xF0, 0x80, 0x80, 0x80, 0xF0, // C
+    0xE0, 0x90, 0x90, 0x90, 0xE0, // D
+    0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
+    0xF0, 0x80, 0xF0, 0x80, 0x80, // F
 ];

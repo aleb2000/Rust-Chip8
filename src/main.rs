@@ -1,12 +1,12 @@
 mod chip8;
-mod instructions;
 mod graphics;
+mod instructions;
 
+use anyhow::anyhow;
 use chip8::Chip8;
 use clap::Parser;
-use std::{fs, collections::HashMap};
-use graphics::{SDLGraphics};
-use anyhow::anyhow;
+use graphics::{Drawable, SDLGraphics, TUIGraphics};
+use std::{collections::HashMap, fs};
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -22,6 +22,10 @@ struct Args {
     /// Size of a game pixel (in screen pixels)
     #[arg(short, long, default_value_t = 20)]
     pixel_size: usize,
+
+    /// Run with TUI graphics
+    #[arg(long, default_value_t = false)]
+    tui: bool,
 }
 
 /// Default keybindings
@@ -52,13 +56,21 @@ fn main() -> anyhow::Result<()> {
     }
 
     let keymap = HashMap::from(KEYBINDINGS);
-
-    let gfx = SDLGraphics::new(64, 32, args.pixel_size as u32, keymap); 
-    
     let rom = fs::read(&args.file)?;
-    let mut chip8 = Chip8::with_rom(args.freq, gfx, &rom);
-    chip8.run();
+    let freq = args.freq;
+
+    if args.tui {
+        let gfx = TUIGraphics::new(64, 32, (2, 1), keymap);
+        run(freq, rom, gfx);
+    } else {
+        let gfx = SDLGraphics::new(64, 32, args.pixel_size as u32, keymap);
+        run(freq, rom, gfx);
+    }
 
     Ok(())
 }
 
+fn run<G: Drawable>(freq: usize, rom: Vec<u8>, gfx: G) {
+    let mut chip8 = Chip8::with_rom(freq, gfx, &rom);
+    chip8.run();
+}
